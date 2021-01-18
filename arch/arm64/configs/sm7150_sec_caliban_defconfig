@@ -5649,6 +5649,7 @@ CONFIG_SS_VIBRATOR=y
 #
 # CONFIG_SEC_SVDM is not set
 # CONFIG_CCIC_ALTERNATE_MODE is not set
+CONFIG_SPU_VERIFY=y
 
 #
 # Firmware Drivers

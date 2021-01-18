@@ -10,6 +10,8 @@
 #include <linux/ktime.h>
 #include <linux/wakelock.h>
 
+#define PD_MIN(a, b)			((a < b) ? (a):(b))
+
 /* for header */
 #define USBPD_REV_20	(1)
 #define USBPD_REV_30	(2)
@@ -862,6 +864,7 @@ struct usbpd_data {
 	int					id_matched;
 
 	int					msg_id;
+	int					alert_msg_id;
 	int					specification_revision;
 	struct mutex		accept_mutex;
 

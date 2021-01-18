@@ -48,17 +48,18 @@ PRODUCT_PACKAGES += \
    To download the source code of S/W listed below, please visit http://opensource.samsung.com and find "Mobile -> Mobile Application" menu, 
    and then, you will be able to download what you want. 
    You might save time in finding the right one by making use of the search keyword below. 
+	- ShareLive.apk : "ShareLive"
 	- MdecService.apk : "MdecService"
 	- HybridRadio.apk : "FMRadio"
 	- AREmoji.apk : "AREmoji"
 	- VoiceNote_5.0.apk : "Voice Recorder"
+	- HoneyBoard.apk : "HoneyBoard"
 	- SamsungCamera.apk : "Camera"
 	- Fmm.apk : "FMM"
-	- KidsHome.apk, KidsHome_Installer.apk : "KidsHome"
+	- KidsHome.apk : "KidsHome"
+	- LiveStickers.apk : "LiveStickers"
 	- BixbyVisionFramework3.apk : "BixbyVisionFramework"
 	- Notes32_Removable.apk : "Samsung Notes"
 	- SamsungMessages_11.apk : "Messaging"
-	- SBrowser_11.0_Removable.apk : "SBrowser" 
+	- SBrowser_11.0_Removable.apk : "SBrowser"
 	- SamsungConnect.apk : "SamsungConnect"
-	- ClipboardEdge.apk, SoundPicker.apk : "libgnustl_shared.so"
-	- ARDrawing.apk : https://mvnrepository.com/artifact/javax.vecmath/vecmath/1.

@@ -267,23 +267,23 @@ static void do_quest()
 	switch (quest_step) {
 		case SMD_QUEST:
 			argv[0] = SMD_QUEST_PROG;
-			snprintf(log_path, 50, "logPath:%s\0", SMD_QUEST_LOGPATH); 
+			snprintf(log_path, 50, "logPath:%s", SMD_QUEST_LOGPATH);
 			argv[1] = log_path;
 			QUEST_PRINT("SMD_QUEST, quest_step : %d", quest_step);
 			break;
 		case CAL_QUEST:
 			argv[0] = CAL_QUEST_PROG;
-			snprintf(log_path, 50, "logPath:%s\0", CAL_QUEST_LOGPATH); 
+			snprintf(log_path, 50, "logPath:%s", CAL_QUEST_LOGPATH);
 			argv[1] = log_path;
 			argv[2] = "Reboot";
 			QUEST_PRINT("CAL_QUEST_HLOS, quest_step : %d", quest_step);
 			QUEST_PRINT("reboot option enabled \n");
-			break;		
+			break;
 		case MAIN_QUEST:
 			argv[0] = MAIN_QUEST_PROG;
-			snprintf(log_path, 50, "logPath:%s\0", MAIN_QUEST_LOGPATH); 
+			snprintf(log_path, 50, "logPath:%s", MAIN_QUEST_LOGPATH);
 			argv[1] = log_path;
-			argv[2] = "Reboot";		
+			argv[2] = "Reboot";
 			QUEST_PRINT("MAIN_QUEST, quest_step : %d\n", quest_step);
 			QUEST_PRINT("reboot option enabled \n");
 			break;
@@ -318,7 +318,7 @@ static void remove_specific_logs(char* remove_log_path)
 		NULL };
 	int ret_userapp;
 
-	QUEST_PRINT("%s : will delete log files at \n", __func__, remove_log_path);
+	QUEST_PRINT("%s : will delete log files at %s\n", __func__, remove_log_path);
 	
 	argv[0] = ERASE_QUEST_PRG;
 	argv[1] = remove_log_path;
@@ -428,14 +428,14 @@ static int get_quest_uefi_result(char* uefi_log_path, int will_print)
 	char questresult_file[50] = { '\0', };
 
 	mutex_lock(&uefi_parse_lock);
-	
+
 	set_fs(KERNEL_DS);
 
-	snprintf(questresult_file, 50, "%s/%s\0", uefi_log_path, "questresult.txt"); 
+	snprintf(questresult_file, 50, "%s/%s", uefi_log_path, "questresult.txt");
 	QUEST_PRINT("%s : will parse %s\n",__func__, questresult_file);
-	
+
 	fd = sys_open(questresult_file, O_RDONLY, 0);
-	
+
 	if (fd < 0) {
 		QUEST_PRINT("%s : The result file of quest_uefi is not existed (fd=%d)\n", __func__, fd);
 		uefi_result = TOTALTEST_NO_RESULT_FILE;
@@ -644,31 +644,31 @@ static ssize_t show_quest_acat(struct device *dev,
 				if (!sec_set_param(param_index_quest, &param_quest_data)) {
 					QUEST_PRINT("%s : fail - set param!! param_quest_data\n", __func__);
 					goto err_out;
-				}		
+				}
 
 				// trigger panic
-				mutex_unlock(&common_lock);				
-				panic("quest_uefi failed");				
+				mutex_unlock(&common_lock);
+				panic("%s","quest_uefi failed");
 			}
-			QUEST_PRINT("%s : uefi_result(%d), current quest_step(%d), so will not trigger panic\n", 
-				__func__, uefi_result, param_quest_data.quest_step );			
+			QUEST_PRINT("%s : uefi_result(%d), current quest_step(%d), so will not trigger panic\n",
+				__func__, uefi_result, param_quest_data.quest_step );
 #else
 			param_quest_data.quest_step = -1;
 			if (!sec_set_param(param_index_quest, &param_quest_data)) {
 				QUEST_PRINT("%s : fail - set param!! param_quest_data\n", __func__);
 				goto err_out;
-			}			
+			}
 #endif
 
 			QUEST_PRINT("ACAT QUEST fail\n");
 			mutex_unlock(&common_lock);
-			return snprintf(buf, BUFF_SZ, "NG_ACAT_ASV\n"); 
+			return snprintf(buf, BUFF_SZ, "NG_ACAT_ASV\n");
 		} break;
 
 		default: {
 			if( param_quest_data.quest_step == CAL_QUEST ) {
 				QUEST_PRINT("%s : total_result = %d, so let's make lastkmsg\n", __func__, total_result );
-				snprintf(options, 50, "action:lastkmsg output_log_path:%s\0", CAL_QUEST_LOGPATH); 
+				snprintf(options, 50, "action:lastkmsg output_log_path:%s", CAL_QUEST_LOGPATH);
 				make_debugging_logs(options);
 			}
 
@@ -676,11 +676,11 @@ static ssize_t show_quest_acat(struct device *dev,
 			mutex_unlock(&common_lock);
 			return snprintf(buf, BUFF_SZ, "OK\n");
 		}
-	}		
+	}
 
 err_out:
 	mutex_unlock(&common_lock);
-	return snprintf(buf, BUFF_SZ, "UNKNOWN\n");	
+	return snprintf(buf, BUFF_SZ, "UNKNOWN\n");
 }
 
 static ssize_t store_quest_acat(struct device *dev,
@@ -941,7 +941,7 @@ static ssize_t show_quest_stat(struct device *dev,
 				QUEST_PRINT("%s : quest_uefi result was abnormal, so trigger panic\n", __func__ );
 				param_quest_init();					
 				mutex_unlock(&common_lock);
-				panic("quest_uefi failed");
+				panic("%s","quest_uefi failed");
 			}else {
 				QUEST_PRINT("%s : already entered to ramdump mode and initialized param, so return\n", __func__);
 				mutex_unlock(&common_lock);
@@ -1015,7 +1015,7 @@ static ssize_t show_quest_stat(struct device *dev,
 			if( !get_smd_item_result(strResult, ITEM_CNT) ) {
 				QUEST_PRINT("%s : wrong param_quest_data state\n", __func__);
 				mutex_unlock(&common_lock);
-				panic("abnormal param_quest_data state");
+				panic("%s","abnormal param_quest_data state");
 			}				
 			QUEST_PRINT("%s : SMD QUEST FAIL\n", __func__);
 			mutex_unlock(&common_lock);
@@ -1038,10 +1038,10 @@ static ssize_t show_quest_stat(struct device *dev,
 
 				// we want to know lastkmsg
 				if( first_check ) {
-					snprintf(options, 50, "action:lastkmsg output_log_path:%s\0", SMD_QUEST_LOGPATH); 
+					snprintf(options, 50, "action:lastkmsg output_log_path:%s", SMD_QUEST_LOGPATH);
 					make_debugging_logs(options);
 				}
-				
+
 				mutex_unlock(&common_lock);
 				return snprintf(buf, BUFF_SZ, "RE_WORK\n");
 			}
@@ -1060,10 +1060,10 @@ static ssize_t show_quest_stat(struct device *dev,
 
 				// we want to know lastkmsg
 				if( first_check ) {
-					snprintf(options, 50, "action:lastkmsg output_log_path:%s\0", SMD_QUEST_LOGPATH); 
+					snprintf(options, 50, "action:lastkmsg output_log_path:%s", SMD_QUEST_LOGPATH);
 					make_debugging_logs(options);
 				}
-				
+
 				mutex_unlock(&common_lock);
 				return snprintf(buf, BUFF_SZ, "RE_WORK\n");
 			}
@@ -1077,7 +1077,7 @@ static ssize_t show_quest_stat(struct device *dev,
 err_out:
 	mutex_unlock(&common_lock);
 	QUEST_PRINT("SMD QUEST UNKNOWN\n");
-	return snprintf(buf, BUFF_SZ, "RE_WORK\n");	
+	return snprintf(buf, BUFF_SZ, "RE_WORK\n");
 }
 
 static DEVICE_ATTR(nad_stat, S_IRUGO, show_quest_stat, NULL);
@@ -1366,7 +1366,7 @@ static ssize_t store_quest_end(struct device *dev,
 			QUEST_PRINT
 			    ("QUEST result : %s, Device enter the upload mode because it is SHORT_QUEST : %s\n",
 			     result, __func__);
-			panic(result);
+			panic("%s", result);
 		} else {
 			kobject_uevent_env(&dev->kobj, KOBJ_CHANGE,
 					   quest_uevent.envp);
@@ -1708,7 +1708,7 @@ static ssize_t store_main_quest_run(struct device *dev,
 		msleep(3000);	// to guarantee saving FLOG
 		kernel_restart(NULL);			
 	}else
-		panic("abnormal uefi_remain_count");
+		panic("%s","abnormal uefi_remain_count");
 
 #endif
 	return count; 
@@ -1770,7 +1770,7 @@ static ssize_t show_main_quest_run(struct device *dev,
 		case TOTALTEST_NO_RESULT_FILE :
 		case TOTALTEST_NO_RESULT_STRING : {
 			QUEST_PRINT("%s : uefi_result = %d, so let's make lastkmsg\n", __func__, uefi_result );
-			snprintf(options, 50, "action:lastkmsg output_log_path:%s\0", MAIN_QUEST_LOGPATH); 
+			snprintf(options, 50, "action:lastkmsg output_log_path:%s", MAIN_QUEST_LOGPATH);
 			make_debugging_logs(options);			
 			break;
 		}
@@ -1784,13 +1784,13 @@ static ssize_t show_main_quest_run(struct device *dev,
 				if (!sec_set_param(param_index_quest, &param_quest_data)) {
 					QUEST_PRINT("%s : fail - set param!! param_quest_data\n", __func__);
 					goto err_out;
-				}		
+				}
 
 				// trigger panic
-				panic("quest_uefi failed");
+				panic("%s", "quest_uefi failed");
 			}
 		}
-	}	
+	}
 
 
 	// 4. continue scenario and return current progress to factory app
@@ -1800,7 +1800,7 @@ static ssize_t show_main_quest_run(struct device *dev,
 		QUEST_PRINT("%s : NOT_END (uefi=%d, ddrtest=%d)\n", __func__,
 			uefi_remain_count, ddrtest_remain_count);
 		return snprintf(buf, BUFF_SZ, "NOT_END\n");
-		
+
 	} else if ( uefi_remain_count == 0 && ddrtest_remain_count == 0) {
 
 		// initialize quest_step
@@ -2291,7 +2291,7 @@ static ssize_t store_quest_qdaf_debug(struct device *dev,
 		return count;
 	case QUEST_QDAF_ACTION_DEBUG_TRIGGER_PANIC :
 		QUEST_PRINT("%s : will trigger panic\n",__func__);
-		panic("qdaf_fail");
+		panic("%s", "qdaf_fail");
 		return count;
 	}
 

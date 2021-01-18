@@ -90,3 +90,8 @@ config SENSORS_A96T3X6_SUB
 	  Above A96T3X6 device driver for grip.
 	  Say N here if you do not use A96T3X6 for grip.
 
+config SENSORS_A96T3X6_CRC_CHECK
+	bool "crc check by fw ver"
+	default n
+	help
+	  To use crc check by fw not checking checksum, active this feature

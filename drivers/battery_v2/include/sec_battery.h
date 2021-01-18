@@ -155,6 +155,8 @@ extern char *sec_cable_type[];
 #define HV_CHARGER_STATUS_STANDARD1	12000 /* mW */
 #define HV_CHARGER_STATUS_STANDARD2	20000 /* mW */
 #define HV_CHARGER_STATUS_STANDARD3 24500 /* mW */
+#define HV_CHARGER_STATUS_STANDARD4 40000 /* mW */
+
 enum {
 	NORMAL_TA,
 	AFC_9V_OR_15W,
@@ -239,9 +241,12 @@ struct cable_info {
 };
 #endif
 
+struct sec_ttf_data;
+
 struct sec_battery_info {
 	struct device *dev;
 	sec_battery_platform_data_t *pdata;
+	struct sec_ttf_data *ttf_d;
 
 	/* power supply used in Android */
 	struct power_supply *psy_bat;
@@ -546,6 +551,9 @@ struct sec_battery_info {
 	/* test mode */
 	int test_mode;
 	bool factory_mode;
+#if !defined(CONFIG_SEC_A71_PROJECT)
+	bool factory_mode_boot_on;
+#endif
 	bool store_mode;
 
 	/* MTBF test for CMCC */
@@ -568,10 +576,7 @@ struct sec_battery_info {
 #if defined(CONFIG_AFC_CHARGER_MODE)
 	char *hv_chg_name;
 #endif
-#if defined(CONFIG_CALC_TIME_TO_FULL)
-	int timetofull;
-	struct delayed_work timetofull_work;
-#endif
+
 #if defined(CONFIG_WIRELESS_TX_MODE)
 	int tx_avg_curr;
 	int tx_time_cnt;
@@ -728,5 +733,6 @@ extern int sec_bat_misc_init(struct sec_battery_info *battery);
 int sec_bat_parse_dt(struct device *dev, struct sec_battery_info *battery);
 void sec_bat_parse_mode_dt(struct sec_battery_info *battery);
 void sec_bat_parse_mode_dt_work(struct work_struct *work);
+bool sec_bat_hv_wc_normal_mode_check(struct sec_battery_info *battery);
 
 #endif /* __SEC_BATTERY_H */

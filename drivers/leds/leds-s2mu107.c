@@ -25,7 +25,7 @@
 #define CONTROL_I2C	0
 #define CONTROL_GPIO	1
 
-static struct s2mu107_fled_data *g_fled_data;
+static struct s2mu107_fled_data *g_fled_data = NULL;
 
 extern struct class *camera_class;
 static struct device *flash_dev;
@@ -958,6 +958,7 @@ static ssize_t rear_flash_store(struct device *dev,
 		mode = S2MU107_FLED_MODE_OFF;
 	} else if (value == 1) {
 		mode = S2MU107_FLED_MODE_TORCH;
+		torch_current = g_fled_data->pdata->flashlight_current[0];
 	} else if (value == 100) {
 		/* Factory Torch*/
 		pr_info("%s: factory torch current [%d]\n",

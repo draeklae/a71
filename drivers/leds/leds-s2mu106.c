@@ -50,7 +50,7 @@ int s2mu106_fled_get_curr(int chan, enum cam_flash_mode cam_mode);
 extern struct class *camera_class;
 extern struct device *cam_dev_flash;
 extern int factory_mode;
-static struct s2mu106_fled_data *g_fled_data;
+static struct s2mu106_fled_data *g_fled_data = NULL;
 
 static char *s2mu106_fled_mode_string[] = {
 	"OFF",
@@ -303,6 +303,9 @@ static void s2mu106_fled_operating_mode(struct s2mu106_fled_data *fled, int mode
 
 	value = mode << 6;
 	s2mu106_update_reg(fled->i2c, S2MU106_FLED_CTRL0, value, 0xC0);
+
+	/*P200827-05556 - change PMIC Boost switching freq from 1.4Mhz (101) to 1.75Mhz (111)*/
+	s2mu106_update_reg(fled->i2c, 0x99, 0x07, 0x0E);
 }
 
 static int s2mu106_fled_get_mode(struct s2mu106_fled_data *fled, int chan)
@@ -461,8 +464,18 @@ int s2mu106_led_mode_ctrl(int state)
 				power_supply_set_property(fled->psy_chg,
 					POWER_SUPPLY_PROP_ENERGY_AVG, &value);
 			}
-			s2mu106_fled_operating_mode(fled, SYS_MODE);
+			if(fled->is_en_torch) {
+				if (!fled->psy_chg)
+					fled->psy_chg = power_supply_get_by_name("s2mu106-charger");
+				fled->is_en_flash = value.intval = true;
+				power_supply_set_property(fled->psy_chg,
+						POWER_SUPPLY_PROP_ENERGY_AVG, &value);
+				fled->is_en_torch = false;
+			} else {
+				s2mu106_fled_operating_mode(fled, SYS_MODE);
+			}
 		}
+		pr_info("[%s]%d S2MU106_FLED_MODE_OFF done \n" ,__func__,__LINE__);
 		break;
 	case S2MU106_FLED_MODE_TORCH:
 /*		muic_afc_set_voltage(5);
@@ -476,15 +489,10 @@ int s2mu106_led_mode_ctrl(int state)
 			s2mu106_fled_operating_mode(fled, SYS_MODE);
 			gpio_direction_output(gpio_torch, 1);
 		}
+		fled->is_en_torch = true;
+		pr_info("[%s]%d S2MU106_FLED_MODE_TORCH & PREFLASH done \n" ,__func__,__LINE__);
 		break;
 	case S2MU106_FLED_MODE_FLASH:
-		if (!fled->psy_chg)
-			fled->psy_chg = power_supply_get_by_name("s2mu106-charger");
-
-		fled->is_en_flash = value.intval = true;
-		power_supply_set_property(fled->psy_chg,
-				POWER_SUPPLY_PROP_ENERGY_AVG, &value);
-
 		s2mu106_fled_operating_mode(fled, AUTO_MODE);
 
 		if (g_fled_data->control_mode == CONTROL_I2C) {
@@ -492,6 +500,7 @@ int s2mu106_led_mode_ctrl(int state)
 		} else { 
 			gpio_direction_output(gpio_flash, 1);
 		}
+		pr_info("[%s]%d S2MU106_FLED_MODE_FLASH done \n" ,__func__,__LINE__);
 		break;
 	case S2MU106_FLED_MODE_MOVIE:
 		if (g_fled_data->control_mode == CONTROL_I2C) {
@@ -502,6 +511,7 @@ int s2mu106_led_mode_ctrl(int state)
 			s2mu106_fled_set_torch_curr(fled, 1, fled->movie_current);
 			gpio_direction_output(gpio_torch, 1);
 		}
+		pr_info("[%s]%d S2MU106_FLED_MODE_MOVIE done \n" ,__func__,__LINE__);
 		break;
 	case S2MU106_FLED_MODE_FACTORY:
 		if (g_fled_data->control_mode == CONTROL_I2C) {
@@ -512,6 +522,7 @@ int s2mu106_led_mode_ctrl(int state)
 			s2mu106_fled_operating_mode(fled, SYS_MODE);
 			gpio_direction_output(gpio_torch, 1);
 		}
+		pr_info("[%s]%d S2MU106_FLED_MODE_FACTORY done \n" ,__func__,__LINE__);
 		break;
 	default:
 		break;
@@ -537,8 +548,10 @@ int s2mu106_mode_change_cam_to_leds(enum cam_flash_mode cam_mode)
 		mode = S2MU106_FLED_MODE_FLASH;
 		break;
 	case CAMERA_FLASH_OP_FIRELOW:
-	case CAMERA_FLASH_OP_FIRERECORD:
 		mode = S2MU106_FLED_MODE_TORCH;
+		break;
+	case CAMERA_FLASH_OP_FIRERECORD:
+		mode = S2MU106_FLED_MODE_MOVIE;
 		break;
 	default:
 		mode = S2MU106_FLED_MODE_OFF;
@@ -828,6 +841,7 @@ static void s2mu106_fled_init(struct s2mu106_fled_data *fled)
 	pr_info("%s: s2mu106_fled init start\n", __func__);
 
 	fled->is_en_flash = false;
+	fled->is_en_torch= false;
 	if (gpio_is_valid(fled->pdata->flash_gpio) &&
 			gpio_is_valid(fled->pdata->torch_gpio)) {
 		pr_info("%s: s2mu106_fled gpio mode\n", __func__);
@@ -934,7 +948,7 @@ static int s2mu106_led_dt_parse_pdata(struct device *dev,
 	ret = of_property_read_u32(np, "preflash_current",
 			&pdata->preflash_current);
 	if (ret < 0)
-		pr_err("%s : could not find flash_current\n", __func__);
+		pr_err("%s : could not find preflash_current\n", __func__);
 
 	ret = of_property_read_u32(np, "torch_current",
 			&pdata->torch_current);
@@ -1041,6 +1055,7 @@ static ssize_t rear_flash_store(struct device *dev,
 		mode = S2MU106_FLED_MODE_OFF;
 	} else if (value == 1) {
 		mode = S2MU106_FLED_MODE_TORCH;
+		torch_current = g_fled_data->flashlight_current[0];
 	} else if (value == 100) {
 		/* Factory Torch*/
 		pr_info("%s: factory torch current [%d]\n", __func__, g_fled_data->factory_current);
@@ -1424,13 +1439,14 @@ int ext_pmic_cam_fled_ctrl(int cam_mode, int curr)
 
 	mutex_lock(&g_fled_data->lock);
 	mode = s2mu106_mode_change_cam_to_leds(cam_mode);
-	pr_info("%s: ext_pmic_cam_fled_ctrl cam_mode=%d curr=%d mode=%d default cur = %d %d\n",
-		__func__, cam_mode, curr, mode, g_fled_data->pdata->flash_current, g_fled_data->pdata->torch_current);
-
 	s2mu106_led_mode_ctrl(mode);
 
 #ifdef DEBUG_TEST_READ
+	pr_info("%s: cam_mode=%d curr=%d mode=%d default cur = %d %d\n",
+		__func__, cam_mode, curr, mode, g_fled_data->pdata->flash_current, g_fled_data->pdata->torch_current);
 	s2mu106_fled_test_read(g_fled_data);
+	s2mu106_fled_get_flash_curr(g_fled_data, 1);
+	s2mu106_fled_get_torch_curr(g_fled_data, 1);
 #endif
 	mutex_unlock(&g_fled_data->lock);
 
@@ -1447,7 +1463,7 @@ static const struct of_device_id cam_flash_dt_match[] = {
 MODULE_DEVICE_TABLE(of, cam_flash_dt_match);
 #endif
 
-#define FLED_DRIVER_I2C "i2c_fled"
+#define FLED_DRIVER_I2C "s2mu106_i2c_fled"
 
 static const struct i2c_device_id i2c_id[] = {
 	{FLED_DRIVER_I2C, (kernel_ulong_t)NULL},

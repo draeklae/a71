@@ -153,6 +153,7 @@ struct s2mu106_fled_data {
 
 	/* charger mode control */
 	bool is_en_flash;
+	bool is_en_torch;
 	struct power_supply *psy_chg;
 
 	struct i2c_client *i2c;

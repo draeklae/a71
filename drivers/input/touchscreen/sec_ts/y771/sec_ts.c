@@ -2160,6 +2160,7 @@ static int sec_ts_parse_dt(struct i2c_client *client)
 	int connected;
 #endif
 	u32 px_zone[3] = { 0 };
+	u32 afe_base[3] = { 0 };
 
 	pdata->tsp_icid = of_get_named_gpio(np, "sec,tsp-icid_gpio", 0);
 	if (gpio_is_valid(pdata->tsp_icid)) {
@@ -2256,7 +2257,6 @@ static int sec_ts_parse_dt(struct i2c_client *client)
 #endif
 	input_info(true, &client->dev, "%s: lcdtype 0x%08X\n", __func__, lcdtype);
 
-#if 0
 	pdata->tsp_id = of_get_named_gpio(np, "sec,tsp-id_gpio", 0);
 	if (gpio_is_valid(pdata->tsp_id))
 		input_info(true, dev, "%s: TSP_ID : %d\n", __func__, gpio_get_value(pdata->tsp_id));
@@ -2266,46 +2266,37 @@ static int sec_ts_parse_dt(struct i2c_client *client)
 	count = of_property_count_strings(np, "sec,firmware_name");
 	if (count <= 0) {
 		pdata->firmware_name = NULL;
-	} else {
-		if (gpio_is_valid(pdata->tsp_id))
-			of_property_read_string_index(np, "sec,firmware_name", gpio_get_value(pdata->tsp_id), &pdata->firmware_name);
-		else
-			of_property_read_string_index(np, "sec,firmware_name", 0, &pdata->firmware_name);
-	}
-#else
-	/* [ temporary code for 1layer panel ]*/
-	pdata->tsp_id = of_get_named_gpio(np, "sec,tsp-id_gpio", 0);
-	if (gpio_is_valid(pdata->tsp_id))
-		input_info(true, dev, "%s: TSP_ID : %d\n", __func__, gpio_get_value(pdata->tsp_id));
-	else
-		input_err(true, dev, "%s: Failed to get tsp-id gpio\n", __func__);
-
-	count = of_property_count_strings(np, "sec,firmware_name");
-	if (count <= 0) {
-		pdata->firmware_name = NULL;
-
 	} else if (count == 1) {
 		of_property_read_string_index(np, "sec,firmware_name", 0, &pdata->firmware_name);
-
-	/* for R5 */
 	} else if (count == 2) {
 		if (((lcdtype >> 8) & 0xFF) == 0x00) {
 			of_property_read_string_index(np, "sec,firmware_name", 0, &pdata->firmware_name);
-
 		} else if (((lcdtype >> 8) & 0xFF) == 0x40 || ((lcdtype >> 8) & 0xFF) == 0x80 || ((lcdtype >> 8) & 0xFF) == 0x44) {
 			of_property_read_string_index(np, "sec,firmware_name", 1, &pdata->firmware_name);
-
 		} else {
 			pdata->firmware_name = NULL;
 			input_err(true, &client->dev, "%s: Abnormal lcd type:%06X\n", __func__, lcdtype);
 		}
+	} else if (count == 3) {
+		of_property_read_u32_array(np, "sec,afe_base", afe_base, 3);
 
+		if (((lcdtype >> 8) & 0xFF) == 0x00) {
+			of_property_read_string_index(np, "sec,firmware_name", 0, &pdata->firmware_name);
+			pdata->afe_base = afe_base[0];
+		} else if (((lcdtype >> 8) & 0xFF) == 0x08) {
+			of_property_read_string_index(np, "sec,firmware_name", 1, &pdata->firmware_name);
+			pdata->afe_base = afe_base[1];
+		} else if (((lcdtype >> 8) & 0xFF) == 0x44) {
+			of_property_read_string_index(np, "sec,firmware_name", 2, &pdata->firmware_name);
+			pdata->afe_base = afe_base[2];
+		} else {
+			pdata->firmware_name = NULL;
+			input_err(true, &client->dev, "%s: Abnormal lcd type:%06X\n", __func__, lcdtype);
+		}
 	} else {
 		pdata->firmware_name = NULL;
 		input_err(true, &client->dev, "%s: Abnormal fw count(%0X)\n", __func__, count);
 	}
-
-#endif
 
 	if (of_property_read_string_index(np, "sec,project_name", 0, &pdata->project_name))
 		input_err(true, &client->dev, "%s: skipped to get project_name property\n", __func__);
@@ -2367,15 +2358,20 @@ static void sec_tclm_parse_dt(struct i2c_client *client, struct sec_tclm_data *t
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = dev->of_node;
+	struct sec_ts_plat_data *pdata = dev->platform_data;
 
 	if (of_property_read_u32(np, "sec,tclm_level", &tdata->tclm_level) < 0) {
 		tdata->tclm_level = 0;
 		input_err(true, dev, "%s: Failed to get tclm_level property\n", __func__);
 	}
 
-	if (of_property_read_u32(np, "sec,afe_base", &tdata->afe_base) < 0) {
-		tdata->afe_base = 0;
-		input_err(true, dev, "%s: Failed to get afe_base property\n", __func__);
+	if (!pdata->afe_base) {
+		if (of_property_read_u32(np, "sec,afe_base", &tdata->afe_base) < 0) {
+			tdata->afe_base = 0;
+			input_err(true, dev, "%s: Failed to get afe_base property\n", __func__);
+		}
+	} else {
+		tdata->afe_base = pdata->afe_base;
 	}
 
 	tdata->support_tclm_test = of_property_read_bool(np, "support_tclm_test");
@@ -3164,7 +3160,7 @@ static void sec_ts_reset_work(struct work_struct *work)
 	if (ts->input_dev_touch->disabled) {
 		input_err(true, &ts->client->dev, "%s: call input_close\n", __func__);
 
-		if (ts->lowpower_mode || ts->ed_enable) {
+		if (ts->lowpower_mode || ts->ed_enable || ts->fod_lp_mode) {
 			ret = sec_ts_set_lowpowermode(ts, TO_LOWPOWER_MODE);
 			if (ret < 0) {
 				input_err(true, &ts->client->dev, "%s: failed to reset, ret:%d\n", __func__, ret);
@@ -3429,7 +3425,7 @@ static void sec_ts_input_close(struct input_dev *dev)
 	cancel_delayed_work(&ts->reset_work);
 #endif
 
-	if (ts->lowpower_mode || ts->ed_enable)
+	if (ts->lowpower_mode || ts->ed_enable || ts->fod_lp_mode)
 		sec_ts_set_lowpowermode(ts, TO_LOWPOWER_MODE);
 	else
 		sec_ts_stop_device(ts);
@@ -3615,7 +3611,6 @@ static int sec_ts_pm_suspend(struct device *dev)
 
 out:
 #endif
-	if (ts->lowpower_mode)
 		reinit_completion(&ts->resume_done);
 
 	return 0;
@@ -3625,7 +3620,6 @@ static int sec_ts_pm_resume(struct device *dev)
 {
 	struct sec_ts_data *ts = dev_get_drvdata(dev);
 
-	if (ts->lowpower_mode)
 		complete_all(&ts->resume_done);
 
 	return 0;

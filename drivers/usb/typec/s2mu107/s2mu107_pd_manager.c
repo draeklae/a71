@@ -180,10 +180,11 @@ int usbpd_manager_select_pps(int num, int ppsVol, int ppsCur)
 #endif
 	pd_noti.sink_status.selected_pdo_num = num;
 
-	if (ppsVol > pd_noti.sink_status.power_list[num].max_voltage) {
+	if (ppsVol > pd_noti.sink_status.power_list[num].max_voltage ||
+			ppsVol > MAX_CHARGING_VOLT) {
 		pr_info("%s: ppsVol is over(%d, max:%d)\n",
 			__func__, ppsVol, pd_noti.sink_status.power_list[num].max_voltage);
-		ppsVol = pd_noti.sink_status.power_list[num].max_voltage;
+		ppsVol = PD_MIN(pd_noti.sink_status.power_list[num].max_voltage, MAX_CHARGING_VOLT);
 	} else if (ppsVol < pd_noti.sink_status.power_list[num].min_voltage) {
 		pr_info("%s: ppsVol is under(%d, min:%d)\n",
 			__func__, ppsVol, pd_noti.sink_status.power_list[num].min_voltage);
@@ -1392,8 +1393,7 @@ int usbpd_manager_evaluate_capability(struct usbpd_data *pd_data)
 			pd_current = pd_obj->power_data_obj_pps.max_current;
 #ifdef CONFIG_BATTERY_SAMSUNG
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
-			if (pd_volt * USBPD_PPS_VOLT_UNIT <= MAX_CHARGING_VOLT)
-				available_pdo_num = i + 1;
+			available_pdo_num = i + 1;
 			pdic_sink_status->power_list[i + 1].max_voltage = pd_volt * USBPD_PPS_VOLT_UNIT;
 			pdic_sink_status->power_list[i + 1].max_current = pd_current * USBPD_PPS_CURRENT_UNIT;
 #if defined(CONFIG_PDIC_PD30)
@@ -1413,7 +1413,18 @@ int usbpd_manager_evaluate_capability(struct usbpd_data *pd_data)
 #ifdef CONFIG_BATTERY_SAMSUNG
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 	if (manager->flash_mode == 1)
+	{
 		available_pdo_num = 1;
+#if defined(CONFIG_PDIC_PD30)
+		pdic_sink_status->has_apdo = false;
+#endif
+	}
+	if ((available_pdo_num > 0) &&
+			(pdic_sink_status->available_pdo_num != available_pdo_num)) {
+		pdic_sink_status->selected_pdo_num = 1;
+		policy->send_sink_cap = 1;
+	}
+	
 	pdic_sink_status->available_pdo_num = available_pdo_num;
 	return available_pdo_num;
 #endif

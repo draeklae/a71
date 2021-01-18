@@ -28,6 +28,7 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/bug.h>
 
 #include <asm/system_misc.h>
 
@@ -425,6 +426,12 @@ static struct msm_soc_info cpu_of_id[] = {
 	/* atoll ID */
 	[407] = {MSM_CPU_ATOLL, "ATOLL"},
 
+	/* atollp ID */
+	[424] = {MSM_CPU_ATOLLP, "ATOLLP"},
+
+	/* atollab ID */
+	[443] = {MSM_CPU_ATOLL_AB, "ATOLL-AB"},
+
 	/* Uninitialized IDs are not known to run Linux.
 	 * MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
 	 * considered as unknown CPU.
@@ -720,6 +727,18 @@ msm_get_vendor(struct device *dev,
 		char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "Qualcomm\n");
+}
+
+static ssize_t
+msm_get_crash(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	pr_err("intentional cdsp runtime failed!\n");
+#ifndef CONFIG_SEC_CDSP_NOT_CRASH_ENG
+	BUG_ON(1);
+#endif /* CONFIG_SEC_CDSP_NOT_CRASH_ENG */
+	return snprintf(buf, PAGE_SIZE, "Qualcomm Technologies, Inc\n");
 }
 
 static ssize_t
@@ -1198,6 +1217,9 @@ static struct device_attribute msm_soc_attr_raw_id =
 static struct device_attribute msm_soc_attr_vendor =
 	__ATTR(vendor, 0444, msm_get_vendor,  NULL);
 
+static struct device_attribute msm_soc_attr_crash =
+	__ATTR(crash, 0444, msm_get_crash,  NULL);
+
 static struct device_attribute msm_soc_attr_build_id =
 	__ATTR(build_id, 0444, msm_get_build_id, NULL);
 
@@ -1409,6 +1431,14 @@ static void * __init setup_dummy_socinfo(void)
 		dummy_socinfo.id = 407;
 		strlcpy(dummy_socinfo.build_id, "atoll - ",
 		sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_atollp()) {
+		dummy_socinfo.id = 424;
+		strlcpy(dummy_socinfo.build_id, "atollp - ",
+		sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_atoll_ab()) {
+		dummy_socinfo.id = 443;
+		strlcpy(dummy_socinfo.build_id, "atoll-ab - ",
+		sizeof(dummy_socinfo.build_id));
 	} else
 		strlcat(dummy_socinfo.build_id, "Dummy socinfo",
 			sizeof(dummy_socinfo.build_id));
@@ -1419,6 +1449,7 @@ static void * __init setup_dummy_socinfo(void)
 static void __init populate_soc_sysfs_files(struct device *msm_soc_device)
 {
 	device_create_file(msm_soc_device, &msm_soc_attr_vendor);
+	device_create_file(msm_soc_device, &msm_soc_attr_crash);
 	device_create_file(msm_soc_device, &image_version);
 	device_create_file(msm_soc_device, &image_variant);
 	device_create_file(msm_soc_device, &image_crm_version);

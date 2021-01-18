@@ -57,7 +57,7 @@ void sec_debug_save_last_pet(unsigned long long last_pet)
 		secdbg_log->last_pet = last_pet;
 }
 
-void sec_debug_save_last_ns(unsigned long long last_ns)
+void notrace sec_debug_save_last_ns(unsigned long long last_ns)
 {
 	if (likely(secdbg_log))
 		atomic64_set(&(secdbg_log->last_ns), last_ns);
@@ -385,8 +385,8 @@ static int __init sec_debug_sched_log_init(void)
 			vaddr = ioremap_cache(secdbg_paddr, secdbg_size);
 	}
 
-	pr_info("vaddr=0x%p paddr=0x%llx size=0x%zx sizeof(struct sec_debug_log)=0x%zx\n",
-			vaddr, (uint64_t)secdbg_paddr,
+	pr_info("vaddr=0x%p paddr=%pa size=0x%zx sizeof(struct sec_debug_log)=0x%zx\n",
+			vaddr, &secdbg_paddr,
 			secdbg_size, sizeof(struct sec_debug_log));
 
 	if ((!vaddr) || (sizeof(struct sec_debug_log) > size)) {

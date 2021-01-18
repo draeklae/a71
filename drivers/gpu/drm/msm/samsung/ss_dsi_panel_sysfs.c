@@ -315,6 +315,7 @@ static ssize_t ss_disp_cell_id_show(struct device *dev,
 	int *cell_id;
 	struct samsung_display_driver_data *vdd =
 		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
+	int count = 0, i = 0, cx = 0;
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		LCD_ERR("no vdd");
@@ -325,34 +326,49 @@ static ssize_t ss_disp_cell_id_show(struct device *dev,
 
 	cell_id = vdd->cell_id_dsi;
 
-	/*
-	*	STANDARD FORMAT (Total is 11Byte)
-	*	MAX_CELL_ID : 11Byte
-	*	7byte(cell_id) + 2byte(Mdnie mdnie.mdnie_xx_postion) + 2byte(Mdnie y_postion)
-	*/
+	if (vdd->siliconworks_ddi){
+		count = ss_get_cmds(vdd, RX_CELL_ID)->cmds[0].msg.rx_len;
+		for (i  = 0; i < count ; i++)
+		{
+			if(cell_id[i] < 0x0A)
+				cx += snprintf(temp + cx, string_size - cx , "%c", cell_id[i] + 0x30);
+			else
+				cx += snprintf(temp + cx, string_size - cx , "%c", cell_id[i] + 0x37);
+		}
+		cx += snprintf(temp + cx, string_size - cx , "\n");
 
-	snprintf((char *)temp, sizeof(temp),
-			"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		cell_id[0], cell_id[1], cell_id[2], cell_id[3], cell_id[4],
-		cell_id[5], cell_id[6],
-		(vdd->mdnie.mdnie_x & 0xFF00) >> 8,
-		vdd->mdnie.mdnie_x & 0xFF,
-		(vdd->mdnie.mdnie_y & 0xFF00) >> 8,
-		vdd->mdnie.mdnie_y & 0xFF);
+		strlcat(buf, temp, string_size);
 
-	strlcat(buf, temp, string_size);
+		LCD_DEBUG("%s\n", temp);
+	}else{
 
-	LCD_INFO("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		cell_id[0], cell_id[1], cell_id[2], cell_id[3], cell_id[4],
-		cell_id[5], cell_id[6],
-		(vdd->mdnie.mdnie_x & 0xFF00) >> 8,
-		vdd->mdnie.mdnie_x & 0xFF,
-		(vdd->mdnie.mdnie_y & 0xFF00) >> 8,
-		vdd->mdnie.mdnie_y & 0xFF);
+		/*
+		*	STANDARD FORMAT (Total is 11Byte)
+		*	MAX_CELL_ID : 11Byte
+		*	7byte(cell_id) + 2byte(Mdnie mdnie.mdnie_xx_postion) + 2byte(Mdnie y_postion)
+		*/
 
+		snprintf((char *)temp, sizeof(temp),
+				"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			cell_id[0], cell_id[1], cell_id[2], cell_id[3], cell_id[4],
+			cell_id[5], cell_id[6],
+			(vdd->mdnie.mdnie_x & 0xFF00) >> 8,
+			vdd->mdnie.mdnie_x & 0xFF,
+			(vdd->mdnie.mdnie_y & 0xFF00) >> 8,
+			vdd->mdnie.mdnie_y & 0xFF);
+
+		strlcat(buf, temp, string_size);
+
+		LCD_INFO("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+			cell_id[0], cell_id[1], cell_id[2], cell_id[3], cell_id[4],
+			cell_id[5], cell_id[6],
+			(vdd->mdnie.mdnie_x & 0xFF00) >> 8,
+			vdd->mdnie.mdnie_x & 0xFF,
+			(vdd->mdnie.mdnie_y & 0xFF00) >> 8,
+			vdd->mdnie.mdnie_y & 0xFF);
+	}
 	return strnlen(buf, string_size);
 }
-
 static ssize_t ss_disp_octa_id_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -423,7 +439,6 @@ static ssize_t ss_disp_octa_id_show(struct device *dev,
 
 	return strnlen(buf, string_size);
 }
-
 static ssize_t ss_disp_lcdtype_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -522,28 +537,37 @@ static ssize_t ss_disp_manufacture_date_show(struct device *dev,
 static ssize_t ss_disp_manufacture_code_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	static int string_size = 30;
+	static int string_size = 50;
 	char temp[string_size];
 	int *ddi_id;
 	struct samsung_display_driver_data *vdd =
 		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
+	int count = 0, i = 0, cx = 0;
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		LCD_ERR("no vdd");
 		return strnlen(buf, string_size);
 	}
-
 	vdd = ss_check_hall_ic_get_vdd(vdd);
 	ddi_id = vdd->ddi_id_dsi;
+	if(vdd->siliconworks_ddi){
+		count = ss_get_cmds(vdd, RX_DDI_ID)->cmds[0].msg.rx_len;
+		for (i  = 0; i < count ; i++)
+		{
+			cx += snprintf(temp + cx, string_size - cx , "%02x", ddi_id[i]);
+		}
+		cx += snprintf(temp + cx, string_size - cx , "\n");
 
-	snprintf((char *)temp, sizeof(temp), "%02x%02x%02x%02x%02x\n",
-		ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
+		strlcat(buf, temp, string_size);
+	}else{
+		snprintf((char *)temp, sizeof(temp), "%02x%02x%02x%02x%02x\n",
+			ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
 
-	strlcat(buf, temp, string_size);
+		strlcat(buf, temp, string_size);
 
-	LCD_INFO("%02x %02x %02x %02x %02x\n",
-		ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
-
+		LCD_INFO("%02x %02x %02x %02x %02x\n",
+			ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
+	}
 	return strnlen(buf, string_size);
 }
 
@@ -555,6 +579,7 @@ static ssize_t ss_disp_SVC_OCTA_DDI_CHIPID_show(struct device *dev,
 	int *ddi_id;
 	struct samsung_display_driver_data *vdd =
 		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
+	int count = 0, i = 0, cx = 0;
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		LCD_ERR("no vdd");
@@ -562,16 +587,26 @@ static ssize_t ss_disp_SVC_OCTA_DDI_CHIPID_show(struct device *dev,
 	}
 
 	vdd = ss_check_hall_ic_get_vdd(vdd);
+
 	ddi_id = vdd->ddi_id_dsi;
+	if(vdd->siliconworks_ddi){
+		count = ss_get_cmds(vdd, RX_DDI_ID)->cmds[0].msg.rx_len;
+		for (i  = 0; i < count ; i++)
+		{
+			cx += snprintf(temp + cx, string_size - cx , "%02x", ddi_id[i]);
+		}
+		cx += snprintf(temp + cx, string_size - cx , "\n");
 
-	snprintf((char *)temp, sizeof(temp), "%02x%02x%02x%02x%02x\n",
-		ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
+		strlcat(buf, temp, string_size);
+	}else{
+		snprintf((char *)temp, sizeof(temp), "%02x%02x%02x%02x%02x\n",
+			ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
 
-	strlcat(buf, temp, string_size);
+		strlcat(buf, temp, string_size);
 
-	LCD_INFO("%02x %02x %02x %02x %02x\n",
-		ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
-
+		LCD_INFO("%02x %02x %02x %02x %02x\n",
+			ddi_id[0], ddi_id[1], ddi_id[2], ddi_id[3], ddi_id[4]);
+	}
 	return strnlen(buf, string_size);
 }
 
@@ -631,9 +666,8 @@ static ssize_t ss_disp_acl_store(struct device *dev,
 	return size;
 }
 
-#if defined(CONFIG_SEC_FACTORY)
-int fd_status = 0;
 
+int fd_status = 0;
 static ssize_t ss_disp_fd_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -670,12 +704,19 @@ static ssize_t ss_disp_fd_store(struct device *dev,
 
 	if (sysfs_streq(buf, "1"))
 	{
-		ss_send_cmd(vdd, TX_FD_ON); //TX_FD_ON - 239
+		if (vdd->panel_func.ub_fd_control)
+			vdd->panel_func.ub_fd_control(vdd, true);
+		else
+			ss_send_cmd(vdd, TX_FD_ON); //TX_FD_ON - 239
 		fd_status = true;
 	}
 	else if (sysfs_streq(buf, "0"))
 	{
-		ss_send_cmd(vdd, TX_FD_OFF); //TX_FD_OFF - 240
+
+		if (vdd->panel_func.ub_fd_control)
+			vdd->panel_func.ub_fd_control(vdd, false);
+		else
+			ss_send_cmd(vdd, TX_FD_OFF); //TX_FD_OFF - 240
 		fd_status = false;
 	}
 	else
@@ -685,7 +726,6 @@ static ssize_t ss_disp_fd_store(struct device *dev,
 
 	return size;
 }
-#endif
 
 static ssize_t ss_disp_siop_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -1171,6 +1211,63 @@ static ssize_t ss_read_mtp_store(struct device *dev,
 err:
 	return size;
 }
+
+static ssize_t ss_write_mtp_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct samsung_display_driver_data *vdd =
+		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
+	char *p, *arg = (char *)buf;
+	u8 *tx_buf = NULL;
+	int len;
+	u8 val = 0;
+	int i = 0;
+
+	if (IS_ERR_OR_NULL(vdd)) {
+		LCD_ERR("no vdd");
+		return -ENODEV;
+	}
+
+	if (!ss_is_ready_to_send_cmd(vdd)) {
+		LCD_ERR("Panel is not ready. Panel State(%d)\n", vdd->panel_state);
+		return size;
+	}
+
+	p = strsep(&arg, " ");
+	if (sscanf(p, "%d", &len) != 1) {
+		LCD_INFO("No size for mtp store\n");
+		return size;
+	}
+
+	if (len <= 0) {
+		LCD_INFO("size is wrong.. %d\n", len);
+		goto err;
+	}
+
+	LCD_INFO("size : %d\n", len);
+
+	tx_buf = kzalloc(len, GFP_KERNEL);
+	if (!tx_buf) {
+		LCD_INFO("Fail to kmalloc for tx_buf..\n");
+		goto err;
+	}
+
+	while ((p = strsep(&arg, " ")) != NULL && i < len) {
+		if (sscanf(p, "%02x", &val) != 1)
+			LCD_INFO("fail to sscanf..\n");
+		tx_buf[i++] = val;
+		LCD_INFO("arg [%02x] \n", val);
+	}
+
+	ss_write_mtp(vdd, len, tx_buf);
+
+	kfree(tx_buf);
+	tx_buf = NULL;
+
+err:
+	return size;
+}
+
 
 static ssize_t ss_temperature_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1808,10 +1905,10 @@ static ssize_t ss_self_mask_check_show(struct device *dev,
 		res = vdd->self_disp.self_mask_check(vdd);
 	else {
 		LCD_ERR("Do not support self mask check..\n");
-	}		
+	}
 
 	len += snprintf(buf + len, 60, "%d ", res);
-	
+
 	if (vdd->self_disp.mask_crc_size) {
 		for (i = 0; i < vdd->self_disp.mask_crc_size; i++) {
 			len += snprintf(buf + len, 60, "%02x ", vdd->self_disp.mask_crc_read_data[i]);
@@ -2255,9 +2352,13 @@ static ssize_t mipi_samsung_grayspot_store(struct device *dev,
 	LCD_INFO("(%d)\n", input);
 
 	if (input) {
+		if (vdd->panel_func.samsung_gray_spot)
+			vdd->panel_func.samsung_gray_spot(vdd, true);
 		ss_send_cmd(vdd, TX_GRAY_SPOT_TEST_ON);
 		vdd->grayspot = 1;
 	} else {
+		if (vdd->panel_func.samsung_gray_spot)
+			vdd->panel_func.samsung_gray_spot(vdd, false);
 		ss_send_cmd(vdd, TX_GRAY_SPOT_TEST_OFF);
 		vdd->grayspot = 0;
 		/* restore VINT, ELVSS */
@@ -2740,27 +2841,41 @@ static ssize_t ss_disp_SVC_OCTA_show(struct device *dev,
 	char temp[string_size];
 	int *cell_id;
 	struct samsung_display_driver_data *vdd;
+	int count = 0, i = 0, cx = 0;
 
 	vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
 	cell_id = vdd->cell_id_dsi;
 
-	/*
-	*	STANDARD FORMAT (Total is 11Byte)
-	*	MAX_CELL_ID : 11Byte
-	*	7byte(cell_id) + 2byte(Mdnie x_postion) + 2byte(Mdnie y_postion)
-	*/
+	if (vdd->siliconworks_ddi){
+		count = ss_get_cmds(vdd, RX_CELL_ID)->cmds[0].msg.rx_len;
+		for (i  = 0; i < count ; i++)
+		{
+			if(cell_id[i] < 0x0A)
+				cx += snprintf(temp + cx, string_size - cx , "%c", cell_id[i] + 0x30);
+			else
+				cx += snprintf(temp + cx, string_size - cx , "%c", cell_id[i] + 0x37);
+		}
+		cx += snprintf(temp + cx, string_size - cx , "\n");
 
-	snprintf((char *)temp, sizeof(temp),
-			"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		cell_id[0], cell_id[1], cell_id[2], cell_id[3], cell_id[4],
-		cell_id[5], cell_id[6],
-		(vdd->mdnie.mdnie_x & 0xFF00) >> 8,
-		vdd->mdnie.mdnie_x & 0xFF,
-		(vdd->mdnie.mdnie_y & 0xFF00) >> 8,
-		vdd->mdnie.mdnie_y & 0xFF);
+		strlcat(buf, temp, string_size);
+	}else{
+		/*
+		*	STANDARD FORMAT (Total is 11Byte)
+		*	MAX_CELL_ID : 11Byte
+		*	7byte(cell_id) + 2byte(Mdnie x_postion) + 2byte(Mdnie y_postion)
+		*/
 
-	strlcat(buf, temp, string_size);
+		snprintf((char *)temp, sizeof(temp),
+				"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			cell_id[0], cell_id[1], cell_id[2], cell_id[3], cell_id[4],
+			cell_id[5], cell_id[6],
+			(vdd->mdnie.mdnie_x & 0xFF00) >> 8,
+			vdd->mdnie.mdnie_x & 0xFF,
+			(vdd->mdnie.mdnie_y & 0xFF00) >> 8,
+			vdd->mdnie.mdnie_y & 0xFF);
 
+		strlcat(buf, temp, string_size);
+	}
 	return strnlen(buf, string_size);
 }
 
@@ -2794,7 +2909,6 @@ static ssize_t ss_disp_SVC_OCTA2_show(struct device *dev,
 
 	return strnlen(buf, string_size);
 }
-
 static ssize_t ss_disp_SVC_OCTA_CHIPID_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -2938,7 +3052,7 @@ static ssize_t ss_rf_info_store(struct device *dev,
 		LCD_ERR("ndx: %d, dynamic mipi clk is not supported..\n", vdd->ndx);
 		return size;
 	}
-	
+
 	if (sscanf(buf, "%d %d %d\n", &temp[0], &temp[1], &temp[2]) != 3)
 		return size;
 
@@ -2954,6 +3068,66 @@ static ssize_t ss_rf_info_store(struct device *dev,
 			vdd->dyn_mipi_clk.rf_info.arfcn);
 	return size;
 }
+
+static ssize_t ss_dynamic_freq_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct samsung_display_driver_data *vdd =
+		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
+	struct clk_timing_table timing_table;
+	int i, len = 0;
+
+
+	if (IS_ERR_OR_NULL(vdd)) {
+		LCD_ERR("vdd is null or error\n");
+		return -ENODEV;
+	}
+
+	timing_table = vdd->dyn_mipi_clk.clk_timing_table;
+
+	len += snprintf(buf + len, 100, "idx clk_rate\n");
+	for (i = 1; i < timing_table.tab_size; i++)
+		len += snprintf(buf + len, 100, "[%d] %d\n", i, timing_table.clk_rate[i]);
+	len += snprintf(buf + len, 100, "Write [idx] to dynamic_freq node to set clk_rate.\n");
+	len += snprintf(buf + len, 100, "To revert it (use rf info), Write 0 to dynamic_freq node.\n");
+
+	return strlen(buf);
+}
+
+/*
+ * ss_dynamic_freq_store()
+ * 0 : revert fixed idx (use rf_info notifier)
+ * others : fix table idx for mipi_clk/ffc to tesst purpose
+ */
+static ssize_t ss_dynamic_freq_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct samsung_display_driver_data *vdd =
+		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
+	int val;
+
+	if (IS_ERR_OR_NULL(vdd)) {
+		LCD_ERR("vdd is null or error\n");
+		return -ENODEV;
+	}
+
+	if (!vdd->dyn_mipi_clk.is_support) {
+		LCD_ERR("ndx: %d, dynamic mipi clk is not supported..\n", vdd->ndx);
+		return size;
+	}
+
+	if (sscanf(buf, "%d\n", &val) != 1)
+		return size;
+
+	vdd->dyn_mipi_clk.force_idx = val;
+
+	queue_work(vdd->dyn_mipi_clk.change_clk_wq, &vdd->dyn_mipi_clk.change_clk_work);
+
+	LCD_INFO("dyn_mipi_clk.force_idx = %d\n", vdd->dyn_mipi_clk.force_idx);
+
+	return size;
+}
+
 
 static int dpui_notifier_callback(struct notifier_block *self,
 				 unsigned long event, void *data)
@@ -3048,7 +3222,7 @@ static int dpui_notifier_callback(struct notifier_block *self,
 	flash_gamma_status = flash_gamma_mode_check(vdd);
 	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", flash_gamma_status);
 	set_dpui_field(DPUI_KEY_PNGFLS, tbuf, size);
-	
+
 	/* ub_con cnt */
 	inc_dpui_u32_field(DPUI_KEY_UB_CON, vdd->ub_con_det.ub_con_cnt);
 	vdd->ub_con_det.ub_con_cnt = 0;
@@ -3804,7 +3978,7 @@ static ssize_t ss_ub_con_det_show(struct device *dev,
 	struct samsung_display_driver_data *vdd =
 		(struct samsung_display_driver_data *)dev_get_drvdata(dev);
 	int ret = 0;
-	
+
 	if (!gpio_is_valid(vdd->ub_con_det.gpio)) {
 		LCD_ERR("No ub_con_det gpio..\n");
 		ret = snprintf(buf, 20, "-1\n");
@@ -3834,7 +4008,7 @@ static ssize_t ss_ub_con_det_store(struct device *dev,
 		LCD_ERR("ub_con_det gpio is not valid ..\n");
 		value = 0;
 	}
-		
+
 	if (value) {
 		vdd->ub_con_det.enabled = true;
 		ub_con_gpio = gpio_get_value(vdd->ub_con_det.gpio);
@@ -3858,11 +4032,10 @@ static DEVICE_ATTR(window_type, S_IRUGO, ss_disp_windowtype_show, NULL);
 static DEVICE_ATTR(manufacture_date, S_IRUGO, ss_disp_manufacture_date_show, NULL);
 static DEVICE_ATTR(manufacture_code, S_IRUGO, ss_disp_manufacture_code_show, NULL);
 static DEVICE_ATTR(power_reduce, S_IRUGO | S_IWUSR | S_IWGRP, ss_disp_acl_show, ss_disp_acl_store);
-#if defined(CONFIG_SEC_FACTORY)
 static DEVICE_ATTR(enable_fd, S_IRUGO | S_IWUSR | S_IWGRP, ss_disp_fd_show, ss_disp_fd_store);
-#endif
 static DEVICE_ATTR(siop_enable, S_IRUGO | S_IWUSR | S_IWGRP, ss_disp_siop_show, ss_disp_siop_store);
 static DEVICE_ATTR(read_mtp, S_IRUGO | S_IWUSR | S_IWGRP, ss_read_mtp_show, ss_read_mtp_store);
+static DEVICE_ATTR(write_mtp, S_IRUGO | S_IWUSR | S_IWGRP, ss_read_mtp_show, ss_write_mtp_store);
 static DEVICE_ATTR(temperature, S_IRUGO | S_IWUSR | S_IWGRP, ss_temperature_show, ss_temperature_store);
 static DEVICE_ATTR(lux, S_IRUGO | S_IWUSR | S_IWGRP, ss_lux_show, ss_lux_store);
 static DEVICE_ATTR(copr, S_IRUGO | S_IWUSR | S_IWGRP, ss_copr_show, ss_copr_store);
@@ -3895,6 +4068,7 @@ static DEVICE_ATTR(SVC_OCTA2_CHIPID, S_IRUGO, ss_disp_SVC_OCTA2_CHIPID_show, NUL
 static DEVICE_ATTR(SVC_OCTA_DDI_CHIPID, S_IRUGO, ss_disp_SVC_OCTA_DDI_CHIPID_show, NULL);
 static DEVICE_ATTR(esd_check, S_IRUGO, mipi_samsung_esd_check_show, NULL);
 static DEVICE_ATTR(rf_info, S_IRUGO | S_IWUSR | S_IWGRP, ss_rf_info_show, ss_rf_info_store);
+static DEVICE_ATTR(dynamic_freq, S_IRUGO | S_IWUSR | S_IWGRP, ss_dynamic_freq_show, ss_dynamic_freq_store);
 #ifdef MDNIE_TUNING
 static DEVICE_ATTR(tuning, 0664, tuning_show, tuning_store);
 #endif
@@ -3932,18 +4106,17 @@ static struct attribute *panel_sysfs_attributes[] = {
 	&dev_attr_manufacture_date.attr,
 	&dev_attr_manufacture_code.attr,
 	&dev_attr_power_reduce.attr,
-#if defined(CONFIG_SEC_FACTORY)
 	&dev_attr_enable_fd.attr,
-#endif
 	&dev_attr_siop_enable.attr,
 	&dev_attr_aid_log.attr,
 	&dev_attr_gamma_interpolation_test.attr,
 	&dev_attr_read_mtp.attr,
+	&dev_attr_write_mtp.attr,
 	&dev_attr_read_copr.attr,
 	&dev_attr_copr.attr,
 	&dev_attr_copr_roi.attr,
 	&dev_attr_brt_avg.attr,
-	&dev_attr_self_mask.attr,	
+	&dev_attr_self_mask.attr,
 	&dev_attr_dynamic_hlpm.attr,
 	&dev_attr_self_display.attr,
 	&dev_attr_self_mask_check.attr,
@@ -3966,6 +4139,7 @@ static struct attribute *panel_sysfs_attributes[] = {
 	&dev_attr_SVC_OCTA_DDI_CHIPID.attr,
 	&dev_attr_esd_check.attr,
 	&dev_attr_rf_info.attr,
+	&dev_attr_dynamic_freq.attr,
 	&dev_attr_xtalk_mode.attr,
 	&dev_attr_gct.attr,
 	&dev_attr_mst.attr,

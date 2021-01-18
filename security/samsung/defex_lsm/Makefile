@@ -7,6 +7,7 @@ PED_ENABLE=true
 SAFEPLACE_ENABLE=true
 IMMUTABLE_ENABLE=true
 LP_ENABLE=true
+UMH_RESTRICTION_ENABLE=true
 
 ifneq ($(wildcard $(srctree)/include/crypto/internal/rsa.h),)
     $(warning [DEFEX] INTEGRITY_ENABLE)
@@ -26,6 +27,7 @@ RAMDISK_ENABLE=true
 SIGN_ENABLE=true
 
 obj-y := defex_lsm.o
+obj-y += defex_common.o
 obj-y += defex_catch_list.o
 obj-y += defex_ht.o
 obj-y += defex_config.o
@@ -50,6 +52,16 @@ ifeq ($(CONFIG_DEFEX_KERNEL_ONLY), y)
     endif
 endif
 
+ifeq ($(CONFIG_SEC_FACTORY), y)
+    DEFEX_DEFINES += -DDEFEX_FACTORY_ENABLE
+endif
+
+ifeq ($(CONFIG_KUNIT), y)
+    DEFEX_DEFINES += -DDEFEX_KUNIT_ENABLED
+else
+    DEFEX_DEFINES += -D__visible_for_testing=static
+endif
+
 ifeq ($(PED_ENABLE), true)
     obj-y += defex_priv.o
     DEFEX_DEFINES += -DDEFEX_PED_ENABLE
@@ -71,6 +83,10 @@ endif
 
 ifeq ($(LP_ENABLE), true)
     DEFEX_DEFINES += -DDEFEX_LP_ENABLE
+endif
+
+ifeq ($(UMH_RESTRICTION_ENABLE), true)
+    DEFEX_DEFINES += -DDEFEX_UMH_RESTRICTION_ENABLE
 endif
 
 ifeq ($(CACHES_ENABLE), true)
@@ -104,15 +120,7 @@ else
     endif
 endif
 
-ifeq ($(SEC_BUILD_OPTION_VTS), true)
-    $(warning [DEFEX] VTS true $(SEC_BUILD_OPTION_VTS))
-    DEFEX_DEFINES += -DDEFEX_PERMISSIVE_SP
-    DEFEX_DEFINES += -DDEFEX_PERMISSIVE_PED
-    DEFEX_DEFINES += -DDEFEX_PERMISSIVE_IM
-    DEFEX_DEFINES += -DDEFEX_PERMISSIVE_LP
-else
-    $(warning [DEFEX] VTS false $(SEC_BUILD_OPTION_VTS))
-endif
+ccflags-y := -Wformat
 
 EXTRA_CFLAGS += -I$(srctree)/$(src)/cert
 EXTRA_AFLAGS += -Isecurity/samsung/defex_lsm/cert
@@ -168,4 +176,3 @@ else
     EXTRA_CFLAGS += $(DEFEX_DEFINES)
     EXTRA_AFLAGS += $(DEFEX_DEFINES)
 endif
-

@@ -27,7 +27,6 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
-#include <linux/sec_argos.h>
 
 #ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
 #include <linux/cpufreq.h>

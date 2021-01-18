@@ -77,6 +77,10 @@ struct adsp_data {
 	struct mutex light_factory_mutex;
 	struct mutex accel_factory_mutex;
 	struct mutex remove_sysfs_mutex;
+
+#ifdef CONFIG_SUPPORT_LIGHT_READ_UBID
+	struct delayed_work light_work;
+#endif
 };
 
 #ifdef CONFIG_SUPPORT_MOBEAM
@@ -101,6 +105,11 @@ void sensors_unregister(struct device *dev,
 void hidden_hole_init_work(void);
 void accel_factory_init_work(void);
 void prox_factory_init_work(void);
+#ifdef CONFIG_SUPPORT_LIGHT_READ_UBID
+void light_ub_read_init_work(struct adsp_data *data);
+void light_ub_read_work_func(struct work_struct *work);
+#endif
+
 #ifdef CONFIG_GP2AP110S_FACTORY
 void prox_gp2ap110s_init_settings(struct adsp_data *data);
 #endif

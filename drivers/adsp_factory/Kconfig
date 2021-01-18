@@ -54,6 +54,14 @@ config SUPPORT_BHL_COMPENSATION_FOR_LIGHT_SENSOR
 	  provide sysfs for LCD service.
 	  receive aor and brightness level from lcd driver.
 
+config SUPPORT_LIGHT_READ_UBID
+	tristate "support lcd ub id for light sensor"
+	default n
+	depends on ADSP_FACTORY
+	help
+	  receive lcd type from lcd sysfs.
+	  send lcd rev to light driver.
+
 config YAS539_FACTORY
 	tristate "factory test for SSC - YAS539"
 	default n
@@ -114,6 +122,15 @@ config SUPPORT_SSC_MODE
 	depends on ADSP_FACTORY
 	help
 	  Support the ssc mode function.
+
+config MMC5603X_FACTORY
+	tristate "factory test for SSC - MMC5603X"
+	default n
+	help
+	  mmc5603x factory driver.
+	  provide sysfs for factory test.
+	  request selftest to adsp_factory.
+	  receive test result from adsp_factory.
 
 config SUPPORT_SSC_MODE_FOR_MAG
 	tristate "Support ssc mode for mag function for mag sensor"

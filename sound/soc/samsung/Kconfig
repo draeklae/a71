@@ -220,3 +220,8 @@ config SND_SOC_SAMSUNG_MBHC_SUPPORT
 	tristate "Audio support for Samsung MBHC"
 	help
 	  Say Y here to enable audio support for the Samsung MBHC.
+
+config SND_SOC_SAMSUNG_JACK
+	tristate "earjack sysfs support for Samsung MBHC"
+	help
+	  Say Y here to enable earjack sysfs support for Samsung MBHC.

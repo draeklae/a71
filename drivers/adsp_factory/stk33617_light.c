@@ -23,6 +23,9 @@
 #define ASCII_TO_DEC(x) (x - 48)
 #define BATT_TEMP_SYSFS_PATH "/sys/class/power_supply/battery/temp"
 
+#define UB_CELL_ID_PATH "/sys/class/lcd/panel/window_type"
+#define UB_CELL_ID_LENGTH 50
+
 int brightness;
 int batt_temp;
 struct delayed_work batt_check_work;
@@ -33,6 +36,7 @@ enum {
 	OPTION_TYPE_LCD_ONOFF,
 	OPTION_TYPE_GET_COPR,
 	OPTION_TYPE_GET_CHIP_ID,
+	OPTION_TYPE_SET_LCD_VERSION,
 	OPTION_TYPE_MAX
 };
 
@@ -86,6 +90,75 @@ static void batt_check_work_func(struct work_struct *work)
 
 	schedule_delayed_work(&batt_check_work, msecs_to_jiffies(600000));
 }
+
+#ifdef CONFIG_SUPPORT_LIGHT_READ_UBID
+int light_get_ub_cell_id(char *id_str)
+{
+	struct file *file_filp = NULL;
+	mm_segment_t old_fs;
+	int ret = 0;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	file_filp = filp_open(UB_CELL_ID_PATH, O_RDONLY, 0440);
+
+	if (IS_ERR(file_filp)) {
+		set_fs(old_fs);
+		ret = PTR_ERR(file_filp);
+		pr_err("[FACTORY] %s: open fail:%d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	ret = vfs_read(file_filp, (char *)id_str,
+		sizeof(char) * UB_CELL_ID_LENGTH, &file_filp->f_pos);
+	if (ret < 0)
+		pr_err("[FACTORY] %s: fd read fail:%d\n",
+			__func__, ret);
+	else
+		pr_info("[FACTORY] %s: UB cell ID: %s\n",
+			__func__, id_str);
+
+	filp_close(file_filp, current->files);
+	set_fs(old_fs);
+
+	return ret;
+}
+
+void light_ub_read_work_func(struct work_struct *work)
+{
+	struct adsp_data *data = container_of((struct delayed_work *)work,
+		struct adsp_data, light_work);
+	int32_t msg_buf[2];
+	char *cur_id_str = kzalloc(UB_CELL_ID_LENGTH, GFP_KERNEL);
+	int i;
+	int val = 0;
+
+	pr_info("[FACTORY] %s \n", __func__);
+	light_get_ub_cell_id(cur_id_str);
+
+	for (i = 0; i < 2; i++)
+	{
+	    val = val * 10 + cur_id_str[i] - '0';
+	}
+	kfree(cur_id_str);
+
+	mutex_lock(&data->light_factory_mutex);
+	msg_buf[0] = OPTION_TYPE_SET_LCD_VERSION;
+	msg_buf[1] = val;
+	adsp_unicast(msg_buf, sizeof(msg_buf),
+		MSG_LIGHT, 0, MSG_TYPE_OPTION_DEFINE);
+	mutex_unlock(&data->light_factory_mutex);
+
+	pr_info("[FACTORY] %s: UB ID: %d\n", __func__, val);
+}
+
+void light_ub_read_init_work(struct adsp_data *data)
+{
+	schedule_delayed_work(&data->light_work, msecs_to_jiffies(8000));
+}
+#endif
 
 /*************************************************************************/
 /* factory Sysfs							 */
@@ -212,6 +285,7 @@ static ssize_t light_lcd_onoff_store(struct device *dev,
 	return size;
 }
 
+#if defined(CONFIG_SEC_A71_PROJECT) 
 static unsigned int system_rev __read_mostly;
 
 static int __init sec_hw_rev_setup(char *p)
@@ -234,6 +308,7 @@ static unsigned int sec_hw_rev(void)
 {
 	return system_rev;
 }
+#endif
 
 static ssize_t light_circle_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -243,6 +318,8 @@ static ssize_t light_circle_show(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "19.87 5.08 2.4\n");
 	else
 		return snprintf(buf, PAGE_SIZE, "53.20 2.41 1.8\n");
+#elif defined(CONFIG_SEC_M51_PROJECT)
+	return snprintf(buf, PAGE_SIZE, "23.05 6.08 2.8\n");
 #else
 	return snprintf(buf, PAGE_SIZE, "0 0 0\n");
 #endif

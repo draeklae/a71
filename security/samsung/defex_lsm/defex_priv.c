@@ -111,7 +111,6 @@ void task_defex_destroy_privesc_obj(struct defex_privesc *privesc)
 static struct privesc_attribute privesc_status_attribute =
 	__ATTR(status, 0660, task_defex_privesc_show_status, task_defex_privesc_store_status);
 
-
 static struct attribute *privesc_default_attrs[] = {
 	&privesc_status_attribute.attr,
 	NULL,

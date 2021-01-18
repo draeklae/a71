@@ -259,6 +259,9 @@ static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 #ifndef CONFIG_SUPPORT_PROX_DUALIZATION
 		prox_factory_init_work();
 #endif
+#ifdef CONFIG_SUPPORT_LIGHT_READ_UBID
+		light_ub_read_init_work(data);
+#endif
 		return 0;
 	}
 
@@ -333,6 +336,10 @@ static int __init factory_adsp_init(void)
 	mutex_init(&data->light_factory_mutex);
 	mutex_init(&data->remove_sysfs_mutex);
 
+#ifdef CONFIG_SUPPORT_LIGHT_READ_UBID
+	INIT_DELAYED_WORK(&data->light_work, light_ub_read_work_func);
+#endif
+
 	pr_info("[FACTORY] %s: Timer Init\n", __func__);
 	return 0;
 }
@@ -346,6 +353,9 @@ static void __exit factory_adsp_exit(void)
 	mutex_destroy(&data->light_factory_mutex);
 	mutex_destroy(&data->remove_sysfs_mutex);
 
+#ifdef CONFIG_SUPPORT_LIGHT_READ_UBID
+	cancel_delayed_work_sync(&data->light_work);
+#endif
 	for (i = 0; i < MSG_SENSOR_MAX; i++)
 		kfree(data->msg_buf[i]);
 	pr_info("[FACTORY] %s\n", __func__);

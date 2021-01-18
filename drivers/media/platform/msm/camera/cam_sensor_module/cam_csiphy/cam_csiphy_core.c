@@ -693,9 +693,9 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 {
 	struct csiphy_device *csiphy_dev =
 		(struct csiphy_device *)phy_dev;
-	struct intf_params   *bridge_intf = NULL;
-	struct cam_control   *cmd = (struct cam_control *)arg;
-	int32_t              rc = 0;
+	struct intf_params      *bridge_intf = NULL;
+	struct cam_control      *cmd = (struct cam_control *)arg;
+	int32_t                 rc = 0;
 
 	if (!csiphy_dev || !cmd) {
 		CAM_ERR(CAM_CSIPHY, "Invalid input args");
@@ -708,7 +708,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		return -EINVAL;
 	}
 
-	CAM_DBG(CAM_CSIPHY, "Opcode received: %d", cmd->op_code);
+	CAM_INFO(CAM_CSIPHY, "Opcode received: %d", cmd->op_code);
 	mutex_lock(&csiphy_dev->mutex);
 	switch (cmd->op_code) {
 	case CAM_ACQUIRE_DEV: {

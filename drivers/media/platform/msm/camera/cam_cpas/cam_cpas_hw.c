@@ -23,6 +23,10 @@
 #include "cam_cpas_soc.h"
 
 static uint cam_min_camnoc_ib_bw;
+#if defined(CONFIG_SEC_M51_PROJECT)
+static bool cam_hw_cci_started = false;
+#endif
+
 module_param(cam_min_camnoc_ib_bw, uint, 0644);
 
 int cam_cpas_util_reg_update(struct cam_hw_info *cpas_hw,
@@ -972,6 +976,28 @@ static int cam_cpas_hw_start(void *hw_priv, void *start_args,
 	if (!CAM_CPAS_CLIENT_VALID(client_indx))
 		return -EINVAL;
 
+#if defined(CONFIG_SEC_M51_PROJECT)
+	if (cam_hw_cci_started && (client_indx == 4) && 
+        (strcmp(cpas_core->cpas_client[client_indx]->data.identifier, "cci") == 0)) {
+		int cnt = 20;
+		while (cnt) {
+			CAM_ERR(CAM_CPAS, "sleep 5ms, cnt[%d]",
+				cnt);
+			msleep(5);
+
+			if (cam_hw_cci_started == false) {
+				CAM_ERR(CAM_CPAS, "Exiting sleep");
+				break;
+			}
+			cnt--;
+		}
+
+		if (cam_hw_cci_started) {
+			CAM_ERR(CAM_CPAS, "CCI resource not released!!!");
+		}
+	}
+#endif
+
 	mutex_lock(&cpas_hw->hw_mutex);
 	mutex_lock(&cpas_core->client_mutex[client_indx]);
 	cpas_client = cpas_core->cpas_client[client_indx];
@@ -1041,12 +1067,18 @@ static int cam_cpas_hw_start(void *hw_priv, void *start_args,
 	cpas_client->started = true;
 	cpas_core->streamon_clients++;
 
-	CAM_DBG(CAM_CPAS, "client=[%d][%s][%d] streamon_clients=%d",
+	CAM_INFO(CAM_CPAS, "client=[%d][%s][%d] streamon_clients=%d",
 		client_indx, cpas_client->data.identifier,
 		cpas_client->data.cell_index, cpas_core->streamon_clients);
 done:
 	mutex_unlock(&cpas_core->client_mutex[client_indx]);
 	mutex_unlock(&cpas_hw->hw_mutex);
+#if defined(CONFIG_SEC_M51_PROJECT)
+	if ((rc == 0) && (client_indx == 4) &&
+        (strcmp(cpas_client->data.identifier, "cci") == 0)) {
+		cam_hw_cci_started = true;
+	}
+#endif
 	return rc;
 }
 
@@ -1095,7 +1127,7 @@ static int cam_cpas_hw_stop(void *hw_priv, void *stop_args,
 	mutex_lock(&cpas_core->client_mutex[client_indx]);
 	cpas_client = cpas_core->cpas_client[client_indx];
 
-	CAM_DBG(CAM_CPAS, "Client=[%d][%s][%d] streamon_clients=%d",
+	CAM_INFO(CAM_CPAS, "Client=[%d][%s][%d] streamon_clients=%d",
 		client_indx, cpas_client->data.identifier,
 		cpas_client->data.cell_index, cpas_core->streamon_clients);
 
@@ -1162,6 +1194,12 @@ static int cam_cpas_hw_stop(void *hw_priv, void *stop_args,
 done:
 	mutex_unlock(&cpas_core->client_mutex[client_indx]);
 	mutex_unlock(&cpas_hw->hw_mutex);
+#if defined(CONFIG_SEC_M51_PROJECT)
+	if ((rc == 0) && (client_indx == 4) &&
+        (strcmp(cpas_client->data.identifier, "cci") == 0)) {
+		cam_hw_cci_started = false;
+	}
+#endif
 	return rc;
 }
 

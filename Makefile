@@ -379,7 +379,7 @@ endif
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
 # REAL_CC		= $(CROSS_COMPILE)gcc
-REAL_CC		= $(srctree)/../toolchains/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04/bin/clang
+REAL_CC		= $(srctree)/toolchain/llvm-arm-toolchain-ship/6.0/bin/clang
 LDGOLD		= $(CROSS_COMPILE)ld.gold
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
